@@ -212,12 +212,13 @@ function bisn_enqueue_scripts() {
         $product = wc_get_product( get_the_ID() );
 
         // Make sure the product exists and is also out of stock.
-        if ( $product && ! $product->is_in_stock() ) {
+        if ( $product /*&& ! $product->is_in_stock() */) {
             wp_enqueue_script( 'bisn-js', plugin_dir_url( __FILE__ ) . 'assets/js/bisn.js', [ 'jquery' ], null, true );
 
             wp_localize_script( 'bisn-js', 'bisnAjax', [
                 'ajaxurl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'bisn_nonce' ),
+                'isLoggedIn' => is_user_logged_in()
             ] );
         }
     }
@@ -252,24 +253,32 @@ function bisn_add_to_waitlist() {
     global $wpdb;
 
     $product_id = intval( $_POST['product_id'] );
-    $email      = sanitize_email( $_POST['email'] );
-
-    if ( ! is_email( $email ) ) {
-        wp_send_json_error( [ 'message' => esc_html__( 'Invalid email address.', 'bisn' ) ] );
+    
+    // Get user ID and email based on login status
+    $user_id = get_current_user_id();
+    
+    if ($user_id) {
+        // User is logged in, get their email from WordPress
+        $current_user = wp_get_current_user();
+        $email = $current_user->user_email;
+    } else {
+        // Guest user, get email from POST data
+        $email = sanitize_email( $_POST['email'] );
+        
+        if ( ! is_email( $email ) ) {
+            wp_send_json_error( [ 'message' => esc_html__( 'Invalid email address.', 'bisn' ) ] );
+        }
     }
 
     // Get the DB table names.
     $table_name         = $wpdb->prefix . 'bisn_waitlist';
     $history_table_name = $wpdb->prefix . 'bisn_waitlist_history';
 
-    // Get the user ID or set it to null.
-    $user_id = get_current_user_id() ?: null;
-
     // Insert into current waitlist table
     $wpdb->insert( $table_name, [
         'product_id' => $product_id,
         'email'      => $email,
-        'user_id'    => $user_id,
+        'user_id'    => $user_id ?: null,
         'date_added' => current_time( 'mysql' ),
     ]);
 
@@ -277,7 +286,7 @@ function bisn_add_to_waitlist() {
     $wpdb->insert( $history_table_name, [
         'product_id'  => $product_id,
         'email'       => $email,
-        'user_id'     => $user_id,
+        'user_id'     => $user_id ?: null,
         'signup_date' => current_time( 'mysql' ),
     ]);
 
