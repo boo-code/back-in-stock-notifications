@@ -218,7 +218,13 @@ function bisn_enqueue_scripts() {
             wp_localize_script( 'bisn-js', 'bisnAjax', [
                 'ajaxurl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'bisn_nonce' ),
-                'isLoggedIn' => is_user_logged_in()
+                'isLoggedIn' => is_user_logged_in(),
+                'i18n' => [
+                    'notifyMe' => esc_html__('Notify Me', 'bisn'),
+                    'notificationText' => esc_html__('Be notified when this product is back in stock!', 'bisn'),
+                    'enterEmail' => esc_html__('Enter your email', 'bisn'),
+                    'pleaseEnterEmail' => esc_html__('Please enter a valid email.', 'bisn')
+                ]
             ] );
         }
     }

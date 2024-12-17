@@ -4,15 +4,15 @@ jQuery(document).ready(function($) {
         if (bisnAjax.isLoggedIn) {
             return `
                 <div id="waitlist-form" style="margin-top: 15px;">
-                    <button id="waitlist-submit">Notify Me</button>
+                    <button id="waitlist-submit">${bisnAjax.i18n.notifyMe}</button>
                     <input type="hidden" name="product_id" value="${productId}" />
                 </div>`;
         } else {
             return `
                 <div id="waitlist-form" style="margin-top: 15px;">
-                    <p>Be notified when this product is back in stock!</p>
-                    <input type="email" id="waitlist-email" placeholder="Enter your email" required style="margin-right: 5px;" />
-                    <button id="waitlist-submit">Notify Me</button>
+                    <p>${bisnAjax.i18n.notificationText}</p>
+                    <input type="email" id="waitlist-email" placeholder="${bisnAjax.i18n.enterEmail}" required style="margin-right: 5px;" />
+                    <button id="waitlist-submit">${bisnAjax.i18n.notifyMe}</button>
                     <input type="hidden" name="product_id" value="${productId}" />
                 </div>`;
         }
@@ -154,7 +154,7 @@ jQuery(document).ready(function($) {
         if (!bisnAjax.isLoggedIn) {
             email = $('#waitlist-email').val();
             if (!email) {
-                alert('Please enter a valid email.');
+                alert(bisnAjax.i18n.pleaseEnterEmail);
                 return;
             }
         }
