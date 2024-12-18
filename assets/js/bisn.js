@@ -117,7 +117,10 @@ jQuery(document).ready(function($) {
         }
     }
 
-    // Initialize after dynamic-variation-price.js has run
+    // Initialize immediately
+    initializeWaitlist();
+
+    // Also initialize after dynamic-variation-price.js has run
     $(document).on('wc_variation_price_initialized', function() {
         initializeWaitlist();
     });
