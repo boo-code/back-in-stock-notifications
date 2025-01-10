@@ -229,7 +229,7 @@ function bisn_enqueue_scripts() {
         }
     }
 }
-add_action( 'wp_enqueue_scripts', 'bisn_enqueue_scripts' );
+// add_action( 'wp_enqueue_scripts', 'bisn_enqueue_scripts' );
 
 /**
  * Enqueue admin-specific JavaScript and CSS.
