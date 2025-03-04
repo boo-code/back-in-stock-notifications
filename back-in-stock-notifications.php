@@ -11,7 +11,7 @@
  * Plugin Name: Back In Stock Notifications for WooCommerce®
  * Description: Automatically notify customers when their favorite products are restocked, and track what products are most in demand.
  * Plugin URI:  https://github.com/robertdevore/back-in-stock-notifications/
- * Version:     1.0.1
+ * Version:     1.0.2
  * Author:      Robert DeVore
  * Author URI:  https://robertdevore.com/
  * License:     GPL-2.0+
@@ -25,6 +25,9 @@
 if ( ! defined( 'WPINC' ) ) {
     die;
 }
+
+// Include helper functions.
+require 'includes/helper-functions.php';
 
 // Include the custom waitlist table class.
 require_once plugin_dir_path( __FILE__ ) . 'classes/class-bisn-waitlist-table.php';
@@ -47,10 +50,17 @@ $myUpdateChecker = PucFactory::buildUpdateChecker(
 // Set the branch that contains the stable release.
 $myUpdateChecker->setBranch( 'main' );
 
-/**
- * Current plugin version.
- */
-define( 'BACK_IN_STOCK_NOTIFICATIONS_VERSION', '1.0.1' );
+// Check if Composer's autoloader is already registered globally.
+if ( ! class_exists( 'RobertDevore\WPComCheck\WPComPluginHandler' ) ) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
+use RobertDevore\WPComCheck\WPComPluginHandler;
+
+new WPComPluginHandler( plugin_basename( __FILE__ ), 'https://robertdevore.com/why-this-plugin-doesnt-support-wordpress-com-hosting/' );
+
+// Plugin version.
+define( 'BACK_IN_STOCK_NOTIFICATIONS_VERSION', '1.0.2' );
 
 /**
  * Check if WooCommerce is active, and prevent activation if it's not.
@@ -212,24 +222,17 @@ function bisn_enqueue_scripts() {
         $product = wc_get_product( get_the_ID() );
 
         // Make sure the product exists and is also out of stock.
-        if ( $product /*&& ! $product->is_in_stock() */) {
+        if ( $product && ! $product->is_in_stock() ) {
             wp_enqueue_script( 'bisn-js', plugin_dir_url( __FILE__ ) . 'assets/js/bisn.js', [ 'jquery' ], null, true );
 
             wp_localize_script( 'bisn-js', 'bisnAjax', [
                 'ajaxurl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'bisn_nonce' ),
-                'isLoggedIn' => is_user_logged_in(),
-                'i18n' => [
-                    'notifyMe' => esc_html__('Notify Me', 'bisn'),
-                    'notificationText' => esc_html__('Be notified when this product is back in stock!', 'bisn'),
-                    'enterEmail' => esc_html__('Enter your email', 'bisn'),
-                    'pleaseEnterEmail' => esc_html__('Please enter a valid email.', 'bisn')
-                ]
             ] );
         }
     }
 }
-// add_action( 'wp_enqueue_scripts', 'bisn_enqueue_scripts' );
+add_action( 'wp_enqueue_scripts', 'bisn_enqueue_scripts' );
 
 /**
  * Enqueue admin-specific JavaScript and CSS.
@@ -259,40 +262,32 @@ function bisn_add_to_waitlist() {
     global $wpdb;
 
     $product_id = intval( $_POST['product_id'] );
-    
-    // Get user ID and email based on login status
-    $user_id = get_current_user_id();
-    
-    if ($user_id) {
-        // User is logged in, get their email from WordPress
-        $current_user = wp_get_current_user();
-        $email = $current_user->user_email;
-    } else {
-        // Guest user, get email from POST data
-        $email = sanitize_email( $_POST['email'] );
-        
-        if ( ! is_email( $email ) ) {
-            wp_send_json_error( [ 'message' => esc_html__( 'Invalid email address.', 'bisn' ) ] );
-        }
+    $email      = sanitize_email( $_POST['email'] );
+
+    if ( ! is_email( $email ) ) {
+        wp_send_json_error( [ 'message' => esc_html__( 'Invalid email address.', 'bisn' ) ] );
     }
 
     // Get the DB table names.
     $table_name         = $wpdb->prefix . 'bisn_waitlist';
     $history_table_name = $wpdb->prefix . 'bisn_waitlist_history';
 
-    // Insert into current waitlist table
+    // Get the user ID or set it to null.
+    $user_id = get_current_user_id() ?: null;
+
+    // Insert into current waitlist table.
     $wpdb->insert( $table_name, [
         'product_id' => $product_id,
         'email'      => $email,
-        'user_id'    => $user_id ?: null,
+        'user_id'    => $user_id,
         'date_added' => current_time( 'mysql' ),
     ]);
 
-    // Insert into history table
+    // Insert into history table.
     $wpdb->insert( $history_table_name, [
         'product_id'  => $product_id,
         'email'       => $email,
-        'user_id'     => $user_id ?: null,
+        'user_id'     => $user_id,
         'signup_date' => current_time( 'mysql' ),
     ]);
 
@@ -319,13 +314,13 @@ function bisn_notify_waitlist_on_restock( $product ) {
         $batch_size          = 50; // Number of emails to process per batch
         $delay_seconds       = 1;  // Delay between each batch (in seconds)
 
-        // Get all emails for this product
+        // Get all emails for this product.
         $emails = $wpdb->get_results( 
             $wpdb->prepare( "SELECT email FROM $table_name WHERE product_id = %d", $product_id ) 
         );
 
         if ( $emails ) {
-            // Split emails into batches
+            // Split emails into batches.
             $email_batches = array_chunk( $emails, $batch_size );
 
             foreach ( $email_batches as $batch ) {
@@ -336,7 +331,7 @@ function bisn_notify_waitlist_on_restock( $product ) {
                     $email_instance = WC()->mailer()->emails['BISN_Back_In_Stock_Email'];
                     $email_instance->trigger( $email, $product );
 
-                    // Log the sent notification
+                    // Log the sent notification.
                     $wpdb->insert( $notifications_table, [
                         'product_id' => $product_id,
                         'email'      => $email,
@@ -345,11 +340,11 @@ function bisn_notify_waitlist_on_restock( $product ) {
                     ]);
                 }
 
-                // Delay before processing the next batch
+                // Delay before processing the next batch.
                 sleep( $delay_seconds );
             }
 
-            // Remove users from the waitlist after sending all notifications
+            // Remove users from the waitlist after sending all notifications.
             $wpdb->delete( $table_name, [ 'product_id' => $product_id ], [ '%d' ] );
         }
     }
@@ -604,7 +599,7 @@ function bisn_export_dashboard_csv() {
 
     global $wpdb;
     
-    // Get data for most wanted, most overdue, and most signed-up products
+    // Get data for most wanted, most overdue, and most signed-up products.
     $table_name         = $wpdb->prefix . 'bisn_waitlist';
     $history_table_name = $wpdb->prefix . 'bisn_waitlist_history';
 
@@ -657,6 +652,17 @@ function bisn_export_dashboard_csv() {
 }
 add_action( 'wp_ajax_bisn_export_dashboard_csv', 'bisn_export_dashboard_csv' );
 
+/**
+ * Registers the Back In Stock email class with WooCommerce.
+ *
+ * This function includes the required email class file and adds an instance
+ * of `BISN_Back_In_Stock_Email` to the list of WooCommerce email classes.
+ *
+ * @param array $email_classes Existing WooCommerce email classes.
+ * 
+ * @since  1.0.0
+ * @return array Modified list of WooCommerce email classes including Back In Stock.
+ */
 function bisn_register_back_in_stock_email( $email_classes ) {
     require_once plugin_dir_path( __FILE__ ) . 'classes/class-bisn-back-in-stock-email.php';
     $email_classes['BISN_Back_In_Stock_Email'] = new BISN_Back_In_Stock_Email();
