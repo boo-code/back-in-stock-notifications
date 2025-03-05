@@ -37,7 +37,7 @@ require_once plugin_dir_path( __FILE__ ) . 'classes/class-bisn-data-helper.php';
 
 // Include the custom waitlist table class.
 require_once plugin_dir_path( __FILE__ ) . 'bisn-woocommerce-my-account.php';
-
+/*
 require 'vendor/plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
@@ -49,7 +49,9 @@ $myUpdateChecker = PucFactory::buildUpdateChecker(
 
 // Set the branch that contains the stable release.
 $myUpdateChecker->setBranch( 'main' );
+*/
 
+/*
 // Check if Composer's autoloader is already registered globally.
 if ( ! class_exists( 'RobertDevore\WPComCheck\WPComPluginHandler' ) ) {
     require_once __DIR__ . '/vendor/autoload.php';
@@ -58,7 +60,7 @@ if ( ! class_exists( 'RobertDevore\WPComCheck\WPComPluginHandler' ) ) {
 use RobertDevore\WPComCheck\WPComPluginHandler;
 
 new WPComPluginHandler( plugin_basename( __FILE__ ), 'https://robertdevore.com/why-this-plugin-doesnt-support-wordpress-com-hosting/' );
-
+*/
 // Plugin version.
 define( 'BACK_IN_STOCK_NOTIFICATIONS_VERSION', '1.0.2' );
 
@@ -280,7 +282,7 @@ function bisn_add_to_waitlist() {
     */
     
     // Get user ID and email based on login status
-    $user_id = get_current_user_id();
+    $user_id = get_current_user_id() ?: null;
     
     if ($user_id) {
         // User is logged in, get their email from WordPress
@@ -302,7 +304,7 @@ function bisn_add_to_waitlist() {
 
     // Get the user ID or set it to null.
    //  $user_id = get_current_user_id() ?: null; //commented code
-    $user_id = $user_id ?: null;  // replaced
+   // $user_id = $user_id ?: null;  // replaced
 
     // Insert into current waitlist table.
     $wpdb->insert( $table_name, [
